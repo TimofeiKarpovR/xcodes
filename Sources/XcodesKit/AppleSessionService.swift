@@ -23,11 +23,11 @@ public class AppleSessionService {
         return nil
     }
 
-    private func findPassword(withUsername username: String) -> String? {
+    private func findPassword(withUsername username: String, noKeychain: Bool) -> String? {
         if let password = Current.shell.env(xcodesPassword) {
             return password
         }
-        else if let password = try? Current.keychain.getString(username){
+        else if !noKeychain, let password = try? Current.keychain.getString(username){
             return password
         }
         return nil
@@ -37,7 +37,7 @@ public class AppleSessionService {
         return Current.network.dataTask(with: URLRequest.downloadADCAuth(path: path)).asVoid()
     }
 
-    func loginIfNeeded(withUsername providedUsername: String? = nil, shouldPromptForPassword: Bool = false) -> Promise<Void> {
+    func loginIfNeeded(withUsername providedUsername: String? = nil, shouldPromptForPassword: Bool = false, noKeychain: Bool) -> Promise<Void> {
         return firstly { () -> Promise<Void> in
             return Current.network.validateSession()
         }
@@ -58,14 +58,14 @@ public class AppleSessionService {
                 // If the user wasn't prompted for their username, also explain which Apple ID password they need to enter
                 passwordPrompt = "Apple ID Password (\(username)): "
             }
-            var possiblePassword = self.findPassword(withUsername: username)
+            var possiblePassword = self.findPassword(withUsername: username, noKeychain: noKeychain)
             if possiblePassword == nil || shouldPromptForPassword {
                 possiblePassword = Current.shell.readSecureLine(prompt: passwordPrompt)
             }
             guard let password = possiblePassword else { throw Error.missingUsernameOrPassword }
 
             return firstly { () -> Promise<Void> in
-                self.login(username, password: password)
+                self.login(username, password: password, noKeychain: noKeychain)
             }
             .recover { error -> Promise<Void> in
                 Current.logging.log(error.legibleLocalizedDescription.red)
@@ -73,7 +73,7 @@ public class AppleSessionService {
                 if case Client.Error.invalidUsernameOrPassword = error {
                     Current.logging.log("Try entering your password again")
                     // Prompt for the password next time to avoid being stuck in a loop of using an incorrect XCODES_PASSWORD environment variable
-                    return self.loginIfNeeded(withUsername: username, shouldPromptForPassword: true)
+                    return self.loginIfNeeded(withUsername: username, shouldPromptForPassword: true, noKeychain: noKeychain)
                 }
                 else {
                     return Promise(error: error)
@@ -82,7 +82,7 @@ public class AppleSessionService {
         }
     }
 
-    func login(_ username: String, password: String) -> Promise<Void> {
+    func login(_ username: String, password: String, noKeychain: Bool) -> Promise<Void> {
         return firstly { () -> Promise<Void> in
             Current.network.login(accountName: username, password: password)
         }
@@ -92,7 +92,9 @@ public class AppleSessionService {
                 switch error  {
                     case .invalidUsernameOrPassword(_):
                         // remove any keychain password if we fail to log with an invalid username or password so it doesn't try again.
-                        try? Current.keychain.remove(username)
+                        if !noKeychain {
+                            try? Current.keychain.remove(username)
+                        }
                     default:
                         break
                 }
@@ -101,7 +103,9 @@ public class AppleSessionService {
             return Promise(error: error)
         }
         .done { _ in
-            try? Current.keychain.set(password, key: username)
+            if !noKeychain {
+                try? Current.keychain.set(password, key: username)
+            }
 
             if self.configuration.defaultUsername != username {
                 self.configuration.defaultUsername = username
@@ -110,7 +114,7 @@ public class AppleSessionService {
         }
     }
 
-    public func logout() -> Promise<Void> {
+    public func logout(noKeychain: Bool) -> Promise<Void> {
         guard let username = findUsername() else { return Promise<Void>(error: Client.Error.notAuthenticated) }
 
         return Promise { seal in
@@ -121,7 +125,9 @@ public class AppleSessionService {
         }
         .done {
             // Remove all keychain items
-            try Current.keychain.remove(username)
+            if !noKeychain {
+                try Current.keychain.remove(username)
+            }
 
             // Set `defaultUsername` in Configuration to nil
             self.configuration.defaultUsername = nil

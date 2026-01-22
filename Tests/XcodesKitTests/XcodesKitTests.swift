@@ -209,7 +209,7 @@ final class XcodesKitTests: XCTestCase {
 
         let expectation = self.expectation(description: "Finished")
 
-        xcodeInstaller.install(.version("0.0.0"), dataSource: .apple, downloader: .urlSession, destination: Path.root.join("Applications"), emptyTrash: false, noSuperuser: false)
+        xcodeInstaller.install(.version("0.0.0"), dataSource: .apple, downloader: .urlSession, destination: Path.root.join("Applications"), emptyTrash: false, noSuperuser: false, noKeychain: false)
             .ensure {
                 let url = Bundle.module.url(forResource: "LogOutput-FullHappyPath", withExtension: "txt", subdirectory: "Fixtures")!
                 XCTAssertEqual(log, try! String(contentsOf: url))
@@ -302,7 +302,7 @@ final class XcodesKitTests: XCTestCase {
 
         let expectation = self.expectation(description: "Finished")
 
-        xcodeInstaller.install(.version("0.0.0"), dataSource: .apple, downloader: .urlSession, destination: Path.root.join("Applications"), emptyTrash: false, noSuperuser: false)
+        xcodeInstaller.install(.version("0.0.0"), dataSource: .apple, downloader: .urlSession, destination: Path.root.join("Applications"), emptyTrash: false, noSuperuser: false, noKeychain: false)
             .ensure {
                 let url = Bundle.module.url(forResource: "LogOutput-FullHappyPath-NoColor", withExtension: "txt", subdirectory: "Fixtures")!
                 XCTAssertEqual(log, try! String(contentsOf: url))
@@ -399,7 +399,7 @@ final class XcodesKitTests: XCTestCase {
 
         let expectation = self.expectation(description: "Finished")
 
-        xcodeInstaller.install(.version("0.0.0"), dataSource: .apple, downloader: .urlSession, destination: Path.root.join("Applications"), emptyTrash: false, noSuperuser: false)
+        xcodeInstaller.install(.version("0.0.0"), dataSource: .apple, downloader: .urlSession, destination: Path.root.join("Applications"), emptyTrash: false, noSuperuser: false, noKeychain: false)
             .ensure {
                 let url = Bundle.module.url(forResource: "LogOutput-FullHappyPath-NonInteractiveTerminal", withExtension: "txt", subdirectory: "Fixtures")!
                 XCTAssertEqual(log, try! String(contentsOf: url))
@@ -492,7 +492,7 @@ final class XcodesKitTests: XCTestCase {
 
         let expectation = self.expectation(description: "Finished")
 
-        xcodeInstaller.install(.version("0.0.0"), dataSource: .apple, downloader: .urlSession, destination: Path.home.join("Xcode"), emptyTrash: false, noSuperuser: false)
+        xcodeInstaller.install(.version("0.0.0"), dataSource: .apple, downloader: .urlSession, destination: Path.home.join("Xcode"), emptyTrash: false, noSuperuser: false, noKeychain: false)
             .ensure {
                 let url = Bundle.module.url(forResource: "LogOutput-AlternativeDirectory", withExtension: "txt", subdirectory: "Fixtures")!
                 let expectedText = try! String(contentsOf: url).replacingOccurrences(of: "/Users/brandon", with: Path.home.string)
@@ -606,7 +606,7 @@ final class XcodesKitTests: XCTestCase {
 
         let expectation = self.expectation(description: "Finished")
 
-        xcodeInstaller.install(.version("0.0.0"), dataSource: .apple, downloader: .urlSession, destination: Path.root.join("Applications"), emptyTrash: false, noSuperuser: false)
+        xcodeInstaller.install(.version("0.0.0"), dataSource: .apple, downloader: .urlSession, destination: Path.root.join("Applications"), emptyTrash: false, noSuperuser: false, noKeychain: false)
             .ensure {
                 let url = Bundle.module.url(forResource: "LogOutput-IncorrectSavedPassword", withExtension: "txt", subdirectory: "Fixtures")!
                 XCTAssertEqual(log, try! String(contentsOf: url))
@@ -724,7 +724,7 @@ final class XcodesKitTests: XCTestCase {
 
         let expectation = self.expectation(description: "Finished")
 
-        xcodeInstaller.install(.version("0.0.0"), dataSource: .apple, downloader: .urlSession, destination: Path.root.join("Applications"), emptyTrash: false, noSuperuser: false)
+        xcodeInstaller.install(.version("0.0.0"), dataSource: .apple, downloader: .urlSession, destination: Path.root.join("Applications"), emptyTrash: false, noSuperuser: false, noKeychain: false)
             .ensure {
                 let url = Bundle.module.url(forResource: "LogOutput-DamagedXIP", withExtension: "txt", subdirectory: "Fixtures")!
                 let expectedText = try! String(contentsOf: url).replacingOccurrences(of: "/Users/brandon", with: Path.home.string)
@@ -1370,7 +1370,7 @@ final class XcodesKitTests: XCTestCase {
 
         let expectation = self.expectation(description: "Signout complete")
 
-        customService.logout()
+        customService.logout(noKeychain: false)
             .ensure { expectation.fulfill() }
             .catch {
                 XCTFail($0.localizedDescription)
@@ -1390,7 +1390,7 @@ final class XcodesKitTests: XCTestCase {
 
         let expectation = self.expectation(description: "Signout complete")
 
-        customService.logout()
+        customService.logout(noKeychain: false)
             .ensure { expectation.fulfill() }
             .catch { error in
                 capturedError = error

@@ -165,9 +165,9 @@ public final class XcodeInstaller {
         case latestPrerelease
     }
 
-    public func install(_ installationType: InstallationType, dataSource: DataSource, downloader: Downloader, destination: Path, experimentalUnxip: Bool = false, emptyTrash: Bool, noSuperuser: Bool) -> Promise<InstalledXcode> {
+    public func install(_ installationType: InstallationType, dataSource: DataSource, downloader: Downloader, destination: Path, experimentalUnxip: Bool = false, emptyTrash: Bool, noSuperuser: Bool, noKeychain: Bool) -> Promise<InstalledXcode> {
         return firstly { () -> Promise<InstalledXcode> in
-            return self.install(installationType, dataSource: dataSource, downloader: downloader, destination: destination, attemptNumber: 0, experimentalUnxip: experimentalUnxip, emptyTrash: emptyTrash, noSuperuser: noSuperuser)
+            return self.install(installationType, dataSource: dataSource, downloader: downloader, destination: destination, attemptNumber: 0, experimentalUnxip: experimentalUnxip, emptyTrash: emptyTrash, noSuperuser: noSuperuser, noKeychain: noKeychain)
         }
         .map { xcode in
             Current.logging.log("\nXcode \(xcode.version.descriptionWithoutBuildMetadata) has been installed to \(xcode.path.string)".green)
@@ -175,9 +175,9 @@ public final class XcodeInstaller {
         }
     }
 
-    private func install(_ installationType: InstallationType, dataSource: DataSource, downloader: Downloader, destination: Path, attemptNumber: Int, experimentalUnxip: Bool, emptyTrash: Bool, noSuperuser: Bool) -> Promise<InstalledXcode> {
+    private func install(_ installationType: InstallationType, dataSource: DataSource, downloader: Downloader, destination: Path, attemptNumber: Int, experimentalUnxip: Bool, emptyTrash: Bool, noSuperuser: Bool, noKeychain: Bool) -> Promise<InstalledXcode> {
         return firstly { () -> Promise<(Xcode, URL)> in
-            return self.getXcodeArchive(installationType, dataSource: dataSource, downloader: downloader, destination: destination, willInstall: true)
+            return self.getXcodeArchive(installationType, dataSource: dataSource, downloader: downloader, destination: destination, willInstall: true, noKeychain: noKeychain)
         }
         .then { xcode, url -> Promise<InstalledXcode> in
             return self.installArchivedXcode(xcode, at: url, to: destination, experimentalUnxip: experimentalUnxip, emptyTrash: emptyTrash, noSuperuser: noSuperuser)
@@ -197,7 +197,7 @@ public final class XcodeInstaller {
                         Current.logging.log(error.legibleLocalizedDescription.red)
                         Current.logging.log("Removing damaged XIP and re-attempting installation.\n")
                         try Current.files.removeItem(at: damagedXIPURL)
-                        return self.install(installationType, dataSource: dataSource, downloader: downloader, destination: destination, attemptNumber: attemptNumber + 1, experimentalUnxip: experimentalUnxip, emptyTrash: emptyTrash, noSuperuser: noSuperuser)
+                        return self.install(installationType, dataSource: dataSource, downloader: downloader, destination: destination, attemptNumber: attemptNumber + 1, experimentalUnxip: experimentalUnxip, emptyTrash: emptyTrash, noSuperuser: noSuperuser, noKeychain: noKeychain)
                     }
                 }
             default:
@@ -206,9 +206,9 @@ public final class XcodeInstaller {
         }
     }
 
-    public func download(_ installation: InstallationType, dataSource: DataSource, downloader: Downloader, destinationDirectory: Path) -> Promise<Void> {
+    public func download(_ installation: InstallationType, dataSource: DataSource, downloader: Downloader, destinationDirectory: Path, noKeychain: Bool) -> Promise<Void> {
         return firstly { () -> Promise<(Xcode, URL)> in
-            return self.getXcodeArchive(installation, dataSource: dataSource, downloader: downloader, destination: destinationDirectory, willInstall: false)
+            return self.getXcodeArchive(installation, dataSource: dataSource, downloader: downloader, destination: destinationDirectory, willInstall: false, noKeychain: noKeychain)
         }
         .map { (xcode, url) -> (Xcode, URL) in
             let destination = destinationDirectory.url.appendingPathComponent(url.lastPathComponent)
@@ -221,7 +221,7 @@ public final class XcodeInstaller {
         }
     }
 
-    private func getXcodeArchive(_ installationType: InstallationType, dataSource: DataSource, downloader: Downloader, destination: Path, willInstall: Bool) -> Promise<(Xcode, URL)> {
+    private func getXcodeArchive(_ installationType: InstallationType, dataSource: DataSource, downloader: Downloader, destination: Path, willInstall: Bool, noKeychain: Bool) -> Promise<(Xcode, URL)> {
         return firstly { () -> Promise<(Xcode, URL)> in
             switch installationType {
             case .latest:
@@ -239,7 +239,7 @@ public final class XcodeInstaller {
                             throw Error.versionAlreadyInstalled(installedXcode)
                         }
 
-                        return self.downloadXcode(version: latestReleaseXcode.version, dataSource: dataSource, downloader: downloader, willInstall: willInstall)
+                        return self.downloadXcode(version: latestReleaseXcode.version, dataSource: dataSource, downloader: downloader, willInstall: willInstall, noKeychain: noKeychain)
                     }
             case .latestPrerelease:
                 Current.logging.log("Updating...")
@@ -260,7 +260,7 @@ public final class XcodeInstaller {
                             throw Error.versionAlreadyInstalled(installedXcode)
                         }
 
-                        return self.downloadXcode(version: latestPrereleaseXcode.version, dataSource: dataSource, downloader: downloader, willInstall: willInstall)
+                        return self.downloadXcode(version: latestPrereleaseXcode.version, dataSource: dataSource, downloader: downloader, willInstall: willInstall, noKeychain: noKeychain)
                     }
             case .path(let versionString, let path):
                 guard let version = Version(xcodeVersion: versionString) ?? Version.fromXcodeVersionFile() else {
@@ -275,26 +275,26 @@ public final class XcodeInstaller {
                 if willInstall, let installedXcode = Current.files.installedXcodes(destination).first(where: { $0.version.isEquivalent(to: version) }) {
                     throw Error.versionAlreadyInstalled(installedXcode)
                 }
-                return self.downloadXcode(version: version, dataSource: dataSource, downloader: downloader, willInstall: willInstall)
+                return self.downloadXcode(version: version, dataSource: dataSource, downloader: downloader, willInstall: willInstall, noKeychain: noKeychain)
             }
         }
     }
 
-    private func downloadXcode(version: Version, dataSource: DataSource, downloader: Downloader, willInstall: Bool) -> Promise<(Xcode, URL)> {
+    private func downloadXcode(version: Version, dataSource: DataSource, downloader: Downloader, willInstall: Bool, noKeychain: Bool) -> Promise<(Xcode, URL)> {
         return firstly { () -> Promise<Void> in
             switch dataSource {
             case .apple:
                     // When using the Apple data source, an authenticated session is required for both
                     // downloading the list of Xcodes as well as to actually download Xcode, so we'll
                     // establish our session right at the start.
-                    return sessionService.loginIfNeeded()
+                    return sessionService.loginIfNeeded(noKeychain: noKeychain)
 
             case .xcodeReleases:
                     // When using the Xcode Releases data source, we only need to establish an anonymous
                     // session once we're ready to download Xcode. Doing that requires us to know the
                     // URL we want to download though (and we may not know that yet), so we don't need
                     // to do anything session-related quite yet.
-                    return sessionService.loginIfNeeded()
+                    return sessionService.loginIfNeeded(noKeychain: noKeychain)
             }
         }
         .then { () -> Promise<Void> in
@@ -493,7 +493,7 @@ public final class XcodeInstaller {
     func update(dataSource: DataSource) -> Promise<[Xcode]> {
         if dataSource == .apple {
             return firstly { () -> Promise<Void> in
-                sessionService.loginIfNeeded()
+                sessionService.loginIfNeeded(noKeychain: false)
             }
             .then { () -> Promise<[Xcode]> in
                 self.xcodeList.update(dataSource: dataSource)

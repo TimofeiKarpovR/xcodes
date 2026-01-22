@@ -129,6 +129,9 @@ struct Xcodes: AsyncParsableCommand {
                 completion: .shellCommand("ls \(FastlaneSessionManager.Constants.fastlaneSpaceshipDir)"))
         var fastlaneUser: String = FastlaneSessionManager.Constants.fastlaneSessionEnvVarName
 
+        @Flag(help: "Don't use keychain for storing or retrieving credentials.")
+        var noKeychain: Bool = false
+
         @OptionGroup
         var globalDataSource: GlobalDataSourceOption
 
@@ -158,7 +161,7 @@ struct Xcodes: AsyncParsableCommand {
                 fastlaneSessionManager.setupFastlaneAuth(fastlaneUser: fastlaneUser)
             }
 
-            xcodeInstaller.download(installation, dataSource: globalDataSource.dataSource, downloader: downloader, destinationDirectory: destination)
+            xcodeInstaller.download(installation, dataSource: globalDataSource.dataSource, downloader: downloader, destinationDirectory: destination, noKeychain: noKeychain)
                 .catch { error in
                     Install.processDownloadOrInstall(error: error)
                 }
@@ -234,6 +237,9 @@ struct Xcodes: AsyncParsableCommand {
                 completion: .shellCommand("ls \(FastlaneSessionManager.Constants.fastlaneSpaceshipDir)"))
         var fastlaneUser: String = FastlaneSessionManager.Constants.fastlaneSessionEnvVarName
 
+        @Flag(help: "Don't use keychain for storing or retrieving credentials.")
+        var noKeychain: Bool = false
+
         @OptionGroup
         var globalDataSource: GlobalDataSourceOption
 
@@ -284,10 +290,10 @@ struct Xcodes: AsyncParsableCommand {
                     Current.logging.log("Updating...")
                     return xcodeList.update(dataSource: globalDataSource.dataSource)
                         .then { _ -> Promise<InstalledXcode> in
-                            xcodeInstaller.install(installation, dataSource: globalDataSource.dataSource, downloader: downloader, destination: destination, experimentalUnxip: experimentalUnxip, emptyTrash: emptyTrash, noSuperuser: noSuperuser)
+                            xcodeInstaller.install(installation, dataSource: globalDataSource.dataSource, downloader: downloader, destination: destination, experimentalUnxip: experimentalUnxip, emptyTrash: emptyTrash, noSuperuser: noSuperuser, noKeychain: noKeychain)
                         }
                 } else {
-                    return xcodeInstaller.install(installation, dataSource: globalDataSource.dataSource, downloader: downloader, destination: destination, experimentalUnxip: experimentalUnxip, emptyTrash: emptyTrash, noSuperuser: noSuperuser)
+                    return xcodeInstaller.install(installation, dataSource: globalDataSource.dataSource, downloader: downloader, destination: destination, experimentalUnxip: experimentalUnxip, emptyTrash: emptyTrash, noSuperuser: noSuperuser, noKeychain: noKeychain)
                 }
             }
             .recover { error -> Promise<InstalledXcode> in
@@ -602,8 +608,8 @@ struct Xcodes: AsyncParsableCommand {
 
         func run() {
             Rainbow.enabled = Rainbow.enabled && globalColor.color
-            
-            sessionService.logout()
+
+            sessionService.logout(noKeychain: false)
                 .done {
                     Current.logging.log("Successfully signed out".green)
                     Signout.exit()
