@@ -35,14 +35,8 @@ public class AppleSessionService {
         }
         else {
             Current.logging.log("🔐 [KEYCHAIN] Attempting to read password from keychain for username: \(username)")
-            if let password = try? Current.keychain.getString(username){
-                Current.logging.log("✅ [KEYCHAIN] Found password in keychain")
-                return password
-            }
-            Current.logging.log("⚠️ [KEYCHAIN] No password found in keychain")
+            fatalError("❌ [KEYCHAIN] KEYCHAIN ACCESS BLOCKED FOR DEBUGGING - findPassword attempted to read from keychain for username: \(username)")
         }
-        Current.logging.log("⚠️ [AUTH] No password found")
-        return nil
     }
 
     func validateADCSession(path: String) -> Promise<Void> {
@@ -124,8 +118,8 @@ public class AppleSessionService {
                 switch error  {
                     case .invalidUsernameOrPassword(_):
                         // remove any keychain password if we fail to log with an invalid username or password so it doesn't try again.
-                        Current.logging.log("🔐 [KEYCHAIN] Removing invalid password from keychain for username: \(username)")
-                        try? Current.keychain.remove(username)
+                        Current.logging.log("🔐 [KEYCHAIN] Attempting to remove invalid password from keychain for username: \(username)")
+                        fatalError("❌ [KEYCHAIN] KEYCHAIN ACCESS BLOCKED FOR DEBUGGING - login error handler attempted to remove from keychain for username: \(username)")
                     default:
                         break
                 }
@@ -135,14 +129,8 @@ public class AppleSessionService {
         }
         .done { _ in
             Current.logging.log("✅ [AUTH] Login successful")
-            Current.logging.log("🔐 [KEYCHAIN] Saving password to keychain for username: \(username)")
-            try? Current.keychain.set(password, key: username)
-
-            if self.configuration.defaultUsername != username {
-                Current.logging.log("💾 [CONFIG] Saving default username: \(username)")
-                self.configuration.defaultUsername = username
-                try? self.configuration.save()
-            }
+            Current.logging.log("🔐 [KEYCHAIN] Attempting to save password to keychain for username: \(username)")
+            fatalError("❌ [KEYCHAIN] KEYCHAIN ACCESS BLOCKED FOR DEBUGGING - login success handler attempted to save to keychain for username: \(username)")
         }
     }
 
@@ -161,13 +149,8 @@ public class AppleSessionService {
         }
         .done {
             // Remove all keychain items
-            Current.logging.log("🔐 [KEYCHAIN] Removing password from keychain for username: \(username)")
-            try Current.keychain.remove(username)
-
-            // Set `defaultUsername` in Configuration to nil
-            Current.logging.log("💾 [CONFIG] Clearing default username")
-            self.configuration.defaultUsername = nil
-            try self.configuration.save()
+            Current.logging.log("🔐 [KEYCHAIN] Attempting to remove password from keychain for username: \(username)")
+            fatalError("❌ [KEYCHAIN] KEYCHAIN ACCESS BLOCKED FOR DEBUGGING - logout attempted to remove from keychain for username: \(username)")
         }
     }
 }
