@@ -37,5 +37,9 @@ public struct Network {
 }
 
 public struct Logging {
-    public var log: (String) -> Void = { print($0) }
+    public var log: (String) -> Void = {
+        // Write to stderr which is unbuffered, better for sudo/debugging
+        fputs($0 + "\n", stderr)
+        fflush(stderr)
+    }
 }

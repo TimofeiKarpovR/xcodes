@@ -38,8 +38,17 @@ public class FastlaneSessionManager {
         do {
             let cookies = try Current.fastlaneCookieParser.parse(cookieString: cookieString)
             Current.logging.log("✅ [FASTLANE AUTH] Successfully parsed \(cookies.count) cookies")
-            cookies.forEach(AppleAPI.Current.network.session.configuration.httpCookieStorage!.setCookie)
+            cookies.forEach { cookie in
+                Current.logging.log("🍪 [FASTLANE AUTH] Cookie: name=\(cookie.name), domain=\(cookie.domain), path=\(cookie.path), expires=\(String(describing: cookie.expiresDate))")
+                AppleAPI.Current.network.session.configuration.httpCookieStorage!.setCookie(cookie)
+            }
             Current.logging.log("✅ [FASTLANE AUTH] Cookies imported to URLSession")
+
+            // Verify cookies were actually set
+            if let storage = AppleAPI.Current.network.session.configuration.httpCookieStorage,
+               let allCookies = storage.cookies {
+                Current.logging.log("🍪 [FASTLANE AUTH] Total cookies in storage: \(allCookies.count)")
+            }
         } catch {
             Current.logging.log("❌ [FASTLANE AUTH] Failed to parse cookies from \(Constants.fastlaneSessionEnvVarName): \(error)".red)
             return
