@@ -8,9 +8,11 @@ public class AppleSessionService {
     private let xcodesPassword = "XCODES_PASSWORD"
 
     var configuration: Configuration
+    var noKeychain: Bool
 
-    public init(configuration: Configuration) {
+    public init(configuration: Configuration, noKeychain: Bool = false) {
         self.configuration = configuration
+        self.noKeychain = noKeychain
     }
 
     private func findUsername() -> String? {
@@ -27,7 +29,7 @@ public class AppleSessionService {
         if let password = Current.shell.env(xcodesPassword) {
             return password
         }
-        else if let password = try? Current.keychain.getString(username){
+        else if !noKeychain, let password = try? Current.keychain.getString(username){
             return password
         }
         return nil
@@ -92,7 +94,9 @@ public class AppleSessionService {
                 switch error  {
                     case .invalidUsernameOrPassword(_):
                         // remove any keychain password if we fail to log with an invalid username or password so it doesn't try again.
-                        try? Current.keychain.remove(username)
+                        if !self.noKeychain {
+                            try? Current.keychain.remove(username)
+                        }
                     default:
                         break
                 }
@@ -101,7 +105,9 @@ public class AppleSessionService {
             return Promise(error: error)
         }
         .done { _ in
-            try? Current.keychain.set(password, key: username)
+            if !self.noKeychain {
+                try? Current.keychain.set(password, key: username)
+            }
 
             if self.configuration.defaultUsername != username {
                 self.configuration.defaultUsername = username
@@ -121,7 +127,9 @@ public class AppleSessionService {
         }
         .done {
             // Remove all keychain items
-            try Current.keychain.remove(username)
+            if !self.noKeychain {
+                try Current.keychain.remove(username)
+            }
 
             // Set `defaultUsername` in Configuration to nil
             self.configuration.defaultUsername = nil
