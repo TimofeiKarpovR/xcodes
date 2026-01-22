@@ -155,7 +155,10 @@ struct Xcodes: AsyncParsableCommand {
             let destination = getDirectory(possibleDirectory: directory, default: .environmentDownloads)
 
             if useFastlaneAuth {
+                Current.logging.log("🚀 [DOWNLOAD] --use-fastlane-auth flag detected, setting up fastlane authentication")
                 fastlaneSessionManager.setupFastlaneAuth(fastlaneUser: fastlaneUser)
+            } else {
+                Current.logging.log("🚀 [DOWNLOAD] Starting download without fastlane auth")
             }
 
             xcodeInstaller.download(installation, dataSource: globalDataSource.dataSource, downloader: downloader, destinationDirectory: destination)
@@ -278,7 +281,12 @@ struct Xcodes: AsyncParsableCommand {
                              using downloader: Downloader,
                              to destination: Path) {
             firstly { () -> Promise<InstalledXcode> in
-                if useFastlaneAuth { fastlaneSessionManager.setupFastlaneAuth(fastlaneUser: fastlaneUser) }
+                if useFastlaneAuth {
+                    Current.logging.log("🚀 [INSTALL] --use-fastlane-auth flag detected, setting up fastlane authentication")
+                    fastlaneSessionManager.setupFastlaneAuth(fastlaneUser: fastlaneUser)
+                } else {
+                    Current.logging.log("🚀 [INSTALL] Starting install without fastlane auth")
+                }
                 // update the list before installing only for version type because the other types already update internally
                 if update, case .version = installation {
                     Current.logging.log("Updating...")
