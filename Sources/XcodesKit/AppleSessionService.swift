@@ -27,7 +27,7 @@ public class AppleSessionService {
         return nil
     }
 
-    private func findPassword(withUsername username: String) -> String? {
+    private func findPassword(withUsername username: String) throws -> String? {
         Current.logging.log("🔍 [AUTH] Looking for password for username: \(username)")
         if let password = Current.shell.env(xcodesPassword) {
             Current.logging.log("✅ [AUTH] Found password in \(xcodesPassword) environment variable")
@@ -35,7 +35,7 @@ public class AppleSessionService {
         }
         else {
             Current.logging.log("🔐 [KEYCHAIN] Attempting to read password from keychain for username: \(username)")
-            fatalError("❌ [KEYCHAIN] KEYCHAIN ACCESS BLOCKED FOR DEBUGGING - findPassword attempted to read from keychain for username: \(username)")
+            throw Error.keychainAccessBlockedForDebugging(operation: "findPassword", username: username)
         }
     }
 
@@ -78,7 +78,7 @@ public class AppleSessionService {
                 passwordPrompt = "Apple ID Password (\(username)): "
             }
             Current.logging.log("🔑 [AUTH] Looking for password...")
-            var possiblePassword = self.findPassword(withUsername: username)
+            var possiblePassword = try self.findPassword(withUsername: username)
             Current.logging.log("🔑 [AUTH] Password found: \(possiblePassword != nil)")
             if possiblePassword == nil || shouldPromptForPassword {
                 Current.logging.log("🔑 [AUTH] No password found or should prompt, prompting user...")
@@ -119,7 +119,7 @@ public class AppleSessionService {
                     case .invalidUsernameOrPassword(_):
                         // remove any keychain password if we fail to log with an invalid username or password so it doesn't try again.
                         Current.logging.log("🔐 [KEYCHAIN] Attempting to remove invalid password from keychain for username: \(username)")
-                        fatalError("❌ [KEYCHAIN] KEYCHAIN ACCESS BLOCKED FOR DEBUGGING - login error handler attempted to remove from keychain for username: \(username)")
+                        throw Error.keychainAccessBlockedForDebugging(operation: "login error handler (remove)", username: username)
                     default:
                         break
                 }
@@ -127,10 +127,10 @@ public class AppleSessionService {
 
             return Promise(error: error)
         }
-        .done { _ in
+        .map { _ -> Void in
             Current.logging.log("✅ [AUTH] Login successful")
             Current.logging.log("🔐 [KEYCHAIN] Attempting to save password to keychain for username: \(username)")
-            fatalError("❌ [KEYCHAIN] KEYCHAIN ACCESS BLOCKED FOR DEBUGGING - login success handler attempted to save to keychain for username: \(username)")
+            throw Error.keychainAccessBlockedForDebugging(operation: "login success handler (save)", username: username)
         }
     }
 
@@ -147,10 +147,10 @@ public class AppleSessionService {
                 seal.fulfill(())
             }
         }
-        .done {
+        .map { _ -> Void in
             // Remove all keychain items
             Current.logging.log("🔐 [KEYCHAIN] Attempting to remove password from keychain for username: \(username)")
-            fatalError("❌ [KEYCHAIN] KEYCHAIN ACCESS BLOCKED FOR DEBUGGING - logout attempted to remove from keychain for username: \(username)")
+            throw Error.keychainAccessBlockedForDebugging(operation: "logout (remove)", username: username)
         }
     }
 }
@@ -158,11 +158,14 @@ public class AppleSessionService {
 extension AppleSessionService {
     enum Error: LocalizedError, Equatable {
         case missingUsernameOrPassword
+        case keychainAccessBlockedForDebugging(operation: String, username: String)
 
         public var errorDescription: String? {
             switch self {
                 case .missingUsernameOrPassword:
                     return "Missing username or a password. Please try again."
+                case .keychainAccessBlockedForDebugging(let operation, let username):
+                    return "❌ [KEYCHAIN] KEYCHAIN ACCESS BLOCKED FOR DEBUGGING - \(operation) attempted to access keychain for username: \(username)"
             }
         }
 
