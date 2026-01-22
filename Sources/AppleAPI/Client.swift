@@ -55,12 +55,41 @@ public class Client {
 
     /// Use the olympus session endpoint to see if the existing session is still valid
     public func validateSession() -> Promise<Void> {
+        Current.logging.log("🔍 [VALIDATION] Starting session validation request to olympus endpoint")
+
+        // Log cookies being sent with the request
+        if let cookieStorage = Current.network.session.configuration.httpCookieStorage,
+           let url = URLRequest.olympusSession.url,
+           let cookies = cookieStorage.cookies(for: url) {
+            Current.logging.log("🍪 [VALIDATION] Sending \(cookies.count) cookies with validation request")
+            cookies.forEach { cookie in
+                Current.logging.log("🍪 [VALIDATION] -> \(cookie.name)=\(cookie.value.prefix(20))... (domain: \(cookie.domain), path: \(cookie.path))")
+            }
+        } else {
+            Current.logging.log("⚠️ [VALIDATION] No cookies found for validation request")
+        }
+
         return Current.network.dataTask(with: URLRequest.olympusSession)
             .done { data, response in
+                Current.logging.log("🔍 [VALIDATION] Received response, status: \((response as? HTTPURLResponse)?.statusCode ?? 0)")
+
+                if let httpResponse = response as? HTTPURLResponse {
+                    Current.logging.log("🔍 [VALIDATION] Response headers: \(httpResponse.allHeaderFields)")
+                }
+
+                if let jsonString = String(data: data, encoding: .utf8) {
+                    Current.logging.log("🔍 [VALIDATION] Response body: \(jsonString.prefix(500))")
+                }
+
                 guard
                     let jsonObject = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
                     jsonObject["provider"] != nil
-                else { throw Error.invalidSession }
+                else {
+                    Current.logging.log("❌ [VALIDATION] Session is invalid - no provider field in response")
+                    throw Error.invalidSession
+                }
+
+                Current.logging.log("✅ [VALIDATION] Session is valid")
             }
     }
     

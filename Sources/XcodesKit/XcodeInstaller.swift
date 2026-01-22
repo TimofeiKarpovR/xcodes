@@ -281,12 +281,14 @@ public final class XcodeInstaller {
     }
 
     private func downloadXcode(version: Version, dataSource: DataSource, downloader: Downloader, willInstall: Bool, noKeychain: Bool) -> Promise<(Xcode, URL)> {
+        Current.logging.log("📥 [INSTALLER] Starting downloadXcode for version: \(version), dataSource: \(dataSource), noKeychain: \(noKeychain)")
         return firstly { () -> Promise<Void> in
             switch dataSource {
             case .apple:
                     // When using the Apple data source, an authenticated session is required for both
                     // downloading the list of Xcodes as well as to actually download Xcode, so we'll
                     // establish our session right at the start.
+                    Current.logging.log("📥 [INSTALLER] Apple data source - calling loginIfNeeded")
                     return sessionService.loginIfNeeded(noKeychain: noKeychain)
 
             case .xcodeReleases:
@@ -294,6 +296,7 @@ public final class XcodeInstaller {
                     // session once we're ready to download Xcode. Doing that requires us to know the
                     // URL we want to download though (and we may not know that yet), so we don't need
                     // to do anything session-related quite yet.
+                    Current.logging.log("📥 [INSTALLER] XcodeReleases data source - calling loginIfNeeded")
                     return sessionService.loginIfNeeded(noKeychain: noKeychain)
             }
         }
@@ -491,9 +494,11 @@ public final class XcodeInstaller {
     }
 
     func update(dataSource: DataSource) -> Promise<[Xcode]> {
+        Current.logging.log("🔄 [INSTALLER] Starting update with dataSource: \(dataSource)")
         if dataSource == .apple {
             return firstly { () -> Promise<Void> in
-                sessionService.loginIfNeeded(noKeychain: false)
+                Current.logging.log("🔄 [INSTALLER] Apple data source - calling loginIfNeeded")
+                return sessionService.loginIfNeeded(noKeychain: false)
             }
             .then { () -> Promise<[Xcode]> in
                 self.xcodeList.update(dataSource: dataSource)
